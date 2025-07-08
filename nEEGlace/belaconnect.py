@@ -1,4 +1,5 @@
 import paramiko
+import os
 
 # function fetch values from config file of bela board
 def getBelaConfig():
@@ -6,10 +7,18 @@ def getBelaConfig():
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
+        # fetch the private key for connection
+        key_path = os.path.expanduser('C:\\Users\\messung\\.ssh\\id_rsa')
+        private_key = paramiko.RSAKey.from_private_key_file(key_path)
         # connect to Bela Board
-        client.connect(hostname= 'bela.local', username= 'root')
+        client.connect(
+            hostname='bela.local',
+            username='root',
+            pkey=private_key,
+            timeout=5
+        )
         # fetch current boot project
-        stdin, stdout, stderr = client.exec_command('cd /root/Bela/projects/AbinTryCode3 && cat config.txt')
+        stdin, stdout, stderr = client.exec_command('cd /root/Bela/projects/EnergyOnsetDetector && cat config.txt')
         # read output and error
         output = stdout.read().decode().strip()
         error = stderr.read().decode().strip()
@@ -25,6 +34,8 @@ def getBelaConfig():
             if len(parts) == 2:
                 value = parts[1].strip()
                 values.append(value)
+            else:
+                values.append(line)
         # set connection status to true 
         belastatus = True       
         return values, belastatus
@@ -43,8 +54,16 @@ def checkBelaStatus():
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
+        # fetch the private key for connection
+        key_path = os.path.expanduser('C:\\Users\\messung\\.ssh\\id_rsa')
+        private_key = paramiko.RSAKey.from_private_key_file(key_path)
         # connect to Bela Board
-        client.connect(hostname='bela.local', username='root')
+        client.connect(
+            hostname='bela.local',
+            username='root',
+            pkey=private_key,
+            timeout=5
+        )
         # if the connection is successful, return True
         return True
     except Exception as e:
@@ -59,8 +78,16 @@ def dumpBelaConfig(values):
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
+        # fetch the private key for connection
+        key_path = os.path.expanduser('C:\\Users\\messung\\.ssh\\id_rsa')
+        private_key = paramiko.RSAKey.from_private_key_file(key_path)
         # connect to Bela Board
-        client.connect(hostname= 'bela.local', username= 'root')
+        client.connect(
+            hostname='bela.local',
+            username='root',
+            pkey=private_key,
+            timeout=5
+        )
         # prepare content to write
         # Prepare content to write
         content = [
@@ -72,7 +99,7 @@ def dumpBelaConfig(values):
         content_str = ''.join(content)
         
         # write data to the config file
-        stdin, stdout, stderr = client.exec_command(f'echo -e "{content_str}" > /root/Bela/projects/AbinTryCode3/config.txt')       
+        stdin, stdout, stderr = client.exec_command(f'echo -e "{content_str}" > /root/Bela/projects/EnergyOnsetDetector/config.txt')       
         # check for any errors
         error = stderr.read().decode().strip()       
         if error:
