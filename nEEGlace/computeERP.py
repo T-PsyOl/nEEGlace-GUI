@@ -11,7 +11,7 @@ import time
 def initialize_erp_params(inlet, srate, nchan, eegchans, plot_widget, epoch_duration=0.8, maxtrials=40, trigger_thr=0.03,
                           trigger_chan=7, high_pass=0.3, hp_ord=4):
     
-    global epochs, triggers, buffer, sampling_rate, epoch_samples, trigger_channel, trigger_threshold, hp, hp_order
+    global epochs, triggers, buffer, sampling_rate, epoch_samples, trigger_channel, trigger_threshold, hp, hp_order, last_trigger_time
     global chan2sel, chan2diff, tidx, max_trials, trial_count, erp_plot_widget, nchans, ring_buffer, pre_samples, post_samples
 
     epochs = []
@@ -30,6 +30,7 @@ def initialize_erp_params(inlet, srate, nchan, eegchans, plot_widget, epoch_dura
     max_trials = maxtrials
     tidx = trigger_chan
     erp_plot_widget = plot_widget
+    last_trigger_time = 0
 
 
 
@@ -56,17 +57,21 @@ def applyBPfilter(data, lowcut=2.0, highcut=20.0, fs=250.0, order=4):
 
 # detect trigger and process data
 def process_data(sample):
-    global epochs, triggers, buffer, trial_count, raw_eeg, ring_buffer, epoch_samples
+    global epochs, triggers, buffer, trial_count, raw_eeg, ring_buffer, epoch_samples, last_trigger_time
 
     n_samples = sample.shape[0]
     ring_buffer = np.roll(ring_buffer, -n_samples, axis=0)
-    ring_buffer[-n_samples:] = sample
+    ring_buffer[-n_samples:] = sample[:, :nchans]
     trigger_signal = sample[:, tidx]
+    current_time = time.time()
     
     for i, value in enumerate(trigger_signal):
         if value > trigger_threshold:
+            if current_time - last_trigger_time < 0.2:
+                continue
             print("Trigger detected")
-            time.sleep(0.2)
+            last_trigger_time = current_time
+            # time.sleep(0.2)
     
             # get the epoch from ring buffer
             epoch = ring_buffer[-(pre_samples + post_samples):, :nchans-1]
