@@ -250,6 +250,7 @@ def main():
     stopCheck = False
     def checkThread4LSL(thread4LSL):
         global streams, inlet, srate, nbchans, stopCheck
+        stopCheck = False
         # checks every 100ms if thread is complete
         if thread4LSL.is_alive():
             if not stopCheck: 
@@ -428,7 +429,6 @@ def main():
             checkThread(connectionThread)
     
     # function to continuously check streamStatus from the thread
-    stopCheck = False
     def checkThread(connectionThread):
         global inlet, srate, nbchans, stopCheck
         # checks every 100ms if thread is complete
@@ -860,7 +860,7 @@ def main():
         #             strM_sndstatans.configure(text= '')
         #         time.sleep(1)
                 
-    def on_erpcalc(): 
+    def on_impcalc(): 
         print('Currently this Functionality Not Available')
         # ani = start_erp(srate, nchan= nbchans, datainlet= inlet[0])
         # # start_erp(srate, nchan= nbchans, datainlet= inlet[0])
@@ -948,8 +948,8 @@ def main():
                                           command= on_streamquit)
     strM_BTquit.grid(row=9, column=0, sticky='sw', padx= (40,0), pady= (0,40))
     # ERP button 
-    strM_BTerp = customtkinter.CTkButton(streamerFrameMain, text= 'Show ERP', fg_color='#ffffff', text_color='#000000', hover_color='#979797',
-                                         command= on_erpcalc)
+    strM_BTerp = customtkinter.CTkButton(streamerFrameMain, text= 'Check Impedance', fg_color='#ffffff', text_color='#000000', hover_color='#979797',
+                                         command= on_impcalc)
     strM_BTerp.grid(row=9, column=9, sticky='se', padx= (0,190), pady= (0,40))
     # Plot Stream button
     strM_BTeegstream = customtkinter.CTkButton(streamerFrameMain, text= 'Plot EEG Data', fg_color='#ffffff', text_color='#000000', hover_color='#979797',
