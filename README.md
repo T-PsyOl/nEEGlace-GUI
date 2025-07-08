@@ -2,7 +2,7 @@
 
 This is the GUI application for nEEGlace device, built with CustomTkinter, PyQt5 and LSL for EEG device communication and real-time visualisation.
 
-## Installation
+## Installation Guide
 
 ```bash
 git clone https://github.com/abinjakob/nEEGlace-GUI.git
