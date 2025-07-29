@@ -4,6 +4,7 @@
 import time
 import os
 import signal
+import math
 # interface
 import tkinter 
 import customtkinter
@@ -22,6 +23,7 @@ from nEEGlace.belaconnect import checkBelaStatus, getBelaConfig, dumpBelaConfig
 from nEEGlace.connectLSL import connectstreams
 from nEEGlace.streamPlotter import plotEEG
 from nEEGlace.advertiseLSL import LSLestablisher, LSLkiller
+from nEEGlace.impedanceCheck import get_impedance_values, get_latest_impedances, shutdown_impedance, imp_running
 
 
 def main():
@@ -208,8 +210,13 @@ def main():
     streamerFrameMain.grid(row=0, column=0, sticky='nsew')
     streamerFrameMain.grid_forget()
     
+    # impedanceFrame
+    impedanceFrame = customtkinter.CTkFrame(app)
+    impedanceFrame.grid(row=0, column=0, sticky='nsew')
+    impedanceFrame.grid_forget()
+    
     # configure grid layout for frames (add all frames here)
-    for frame in (mainFrame, troubleshootFrame1, troubleshootFrame2, troubleshootFrame3, testaudioframe, configFrameMain, streamerFrameMain, streamerFrameLoad):
+    for frame in (mainFrame, troubleshootFrame1, troubleshootFrame2, troubleshootFrame3, testaudioframe, configFrameMain, streamerFrameMain, streamerFrameLoad, impedanceFrame):
         frame.grid_rowconfigure(9, weight=1)
         for i in range(10):
             frame.grid_columnconfigure(i, weight=1)
@@ -229,10 +236,18 @@ def main():
     def on_troubleshoot():
         mainFrame.grid_forget()
         troubleshootFrame1.grid(sticky='nsew')
-    def on_config():
+        
+    def on_config(): 
         mainFrame.grid_forget()
         configFrameMain.grid(sticky='nsew')
         updateConfig()
+        
+    def on_impcalc():
+        global electrode_items
+        mainFrame.grid_forget()
+        impedanceFrame.grid(sticky='nsew')
+        electrode_items = drawElectrodes(left_positions) + drawElectrodes(right_positions)
+    
     def on_start():
         global inlet, streaminfo, sfreq, nchan
         
@@ -307,7 +322,14 @@ def main():
     # setup buttons
     BTconfig = customtkinter.CTkButton(mainFrame, text= 'Configure nEEGlace', fg_color='#ffffff', text_color='#000000', hover_color='#979797',
                                        command= on_config)
-    BTconfig.grid(row=9, column=1, sticky='sw', padx= (0,10), pady= (0,40))
+    BTconfig.grid(row=9, column=1, sticky='sw', padx= (0,0), pady= (0,40))
+    # impedance button
+    BTimp = customtkinter.CTkButton(mainFrame, text= 'Impedance', fg_color='#ffffff', text_color='#000000', hover_color='#979797',
+                                         command= on_impcalc)
+    BTimp.grid(row=9, column=2, sticky='sw', padx= (0,0), pady= (0,40))
+    
+    
+    
     # start recording button
     BTstart = customtkinter.CTkButton(mainFrame, text= 'Start Streaming', 
                                       command= on_start)
@@ -842,45 +864,11 @@ def main():
     
     # --- Streamer Main Frame UI ---
     
-    
-    
     # button functions
     def on_streameeg():
         plotEEG(inlet, eegchans, nbchans, tidx, soundThresh)
         trialcount = 0
-        
-        # def update_trialcount():
-        #     nonlocal trialcount
-        #     while True: 
-        #         if newtrialcount > trialcount:
-        #             trialcount = newtrialcount
-        #             strM_trlavgans.configure(text= trialcount)
-        #             strM_sndstatans.configure(text= 'Sound Detected')
-        #             time.sleep(.3)
-        #             strM_sndstatans.configure(text= '')
-        #         time.sleep(1)
-                
-    def on_impcalc(): 
-        print('Currently this Functionality Not Available')
-        # ani = start_erp(srate, nchan= nbchans, datainlet= inlet[0])
-        # # start_erp(srate, nchan= nbchans, datainlet= inlet[0])
-        # trialcount = 0
-        
-        # def update_trialcount():
-        #     nonlocal trialcount
-        #     while True: 
-        #         newtrialcount = getTrialCount()
-        #         if newtrialcount > trialcount:
-        #             trialcount = newtrialcount
-        #             strM_trlavgans.configure(text= trialcount)
-        #             strM_sndstatans.configure(text= 'Sound Detected')
-        #             time.sleep(.3)
-        #             strM_sndstatans.configure(text= '')
-        #         time.sleep(1)
             
-        # threading.Thread(target=update_trialcount, daemon=True).start()
-        # plt.show()
-    
     def on_streamquit():
         killstat = LSLkiller(deviceName)
         if killstat:
@@ -947,14 +935,106 @@ def main():
     strM_BTquit = customtkinter.CTkButton(streamerFrameMain, text= 'Quit Stream', fg_color='#5b2b2b', text_color='#b6b6b6', hover_color='#4f2121',
                                           command= on_streamquit)
     strM_BTquit.grid(row=9, column=0, sticky='sw', padx= (40,0), pady= (0,40))
-    # ERP button 
-    strM_BTerp = customtkinter.CTkButton(streamerFrameMain, text= 'Check Impedance', fg_color='#ffffff', text_color='#000000', hover_color='#979797',
-                                         command= on_impcalc)
-    strM_BTerp.grid(row=9, column=9, sticky='se', padx= (0,190), pady= (0,40))
+
+    
     # Plot Stream button
     strM_BTeegstream = customtkinter.CTkButton(streamerFrameMain, text= 'Plot EEG Data', fg_color='#ffffff', text_color='#000000', hover_color='#979797',
                                                command= on_streameeg)
     strM_BTeegstream.grid(row=9, column=9, sticky='se', padx= (10,40), pady= (0,40))
+    
+    
+
+    
+    # --- Impedance Frame UI ---
+
+    circle_radius = 22
+    # convert impedance value to colors
+    def convertImpval2Color(impedance):
+        impedance = max(0, min(impedance, 100)) 
+        red = int((impedance / 100) * 255)
+        green = int(((100 - impedance) / 100) * 255)
+        return f'#{red:02x}{green:02x}00' 
+    
+    # electrode layout
+    def drawElectrodes(positions):
+        item_pairs = []
+        for i, (x, y) in enumerate(positions):
+            circle_id = imp_canvas.create_oval(
+                x - circle_radius, y - circle_radius,
+                x + circle_radius, y + circle_radius,
+                fill='#404040', outline="#626262"
+            )
+            text_id = imp_canvas.create_text(
+                x, y, text="0.00", fill="black", font=("Arial", 9, "bold")
+            )
+            item_pairs.append((circle_id, text_id))
+        return item_pairs
+
+    # updates impedance for each electrode
+    def setImpColors(canvas, electrode_items, impedance_values):
+        for i, (circle_id, text_id) in enumerate(electrode_items):
+            if i < len(impedance_values):
+                color = convertImpval2Color(impedance_values[i])
+                if impedance_values[i] > 10000:
+                    canvas.itemconfig(circle_id, fill=color)
+                    canvas.itemconfig(text_id, text=">500")
+                else:
+                    canvas.itemconfig(circle_id, fill=color)
+                    canvas.itemconfig(text_id, text=f"{impedance_values[i]:.2f}")
+            
+    
+    def on_impquit():
+        shutdown_impedance()
+        impedanceFrame.grid_forget()
+        mainFrame.grid(sticky='nsew')
+    
+    def on_impstart():
+        imp_BTstartimp.grid_remove()
+        imp_BTquit.grid_remove()
+        imp_BTstopimp.grid()
+        get_impedance_values(device_name=deviceName, channels=len(eegchans))
+        update_imp_loop()
+    
+    def on_impstop():
+        shutdown_impedance()
+        imp_BTstartimp.grid()
+        imp_BTquit.grid()
+        imp_BTstopimp.grid_remove()
+        
+        
+
+    def update_imp_loop():
+        if imp_running():
+            imp_data = get_latest_impedances()
+            setImpColors(imp_canvas, electrode_items, imp_data)
+            impedanceFrame.after(500, update_imp_loop) 
+    
+    # Title
+    imp_title = customtkinter.CTkLabel(impedanceFrame, text='nEEGlace Impedance Check', font=H2)
+    imp_title.grid(row=0, column=0, columnspan=10, sticky='w', padx=(40, 0), pady=(40, 0))
+    
+    # Buttons
+    imp_BTstartimp = customtkinter.CTkButton(impedanceFrame, text='Measure Impedance', fg_color='#ffffff',
+                                             text_color='#000000', hover_color='#979797', command=on_impstart)
+    imp_BTstartimp.grid(row=9, column=9, sticky='se', padx=(10, 40), pady=(0, 40))
+    
+    imp_BTstopimp = customtkinter.CTkButton(impedanceFrame, text='Stop', fg_color='#5b2b2b', text_color='#b6b6b6', hover_color='#4f2121', command=on_impstop)
+    imp_BTstopimp.grid(row=9, column=4, sticky='se', pady=(0, 40))
+    imp_BTstopimp.grid_remove()
+    
+    imp_BTquit = customtkinter.CTkButton(impedanceFrame, text='Back to Main Menu', fg_color='#5b5b5b',
+                                         text_color='#b6b6b6', hover_color='#4f4f4f', command=on_impquit)
+    imp_BTquit.grid(row=9, column=0, sticky='sw', padx=(40, 0), pady=(0, 40))
+    
+    # canvas for electrode layout
+    imp_canvas = customtkinter.CTkCanvas(impedanceFrame, width=500, height=350, bg="#2b2b2b", highlightthickness=0)
+    imp_canvas.grid(row=5, column=0, columnspan=10, padx=(40, 0), pady=(50, 0))
+    
+    # electrode positions
+    left_positions = [(45, 74), (84, 37), (131, 41), (168, 81), (185, 130), (185, 186),
+                      (168, 235), (131, 275), (84, 279), (45, 242)]
+    right_positions = [(417, 74), (378, 37), (331, 41), (277, 130), (294, 235),
+                       (331, 275), (378, 279), (417, 242)]
     
     # run app
     app.mainloop()
