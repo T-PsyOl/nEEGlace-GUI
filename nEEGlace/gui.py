@@ -142,6 +142,7 @@ def main():
     # function to handle closing the window
     def on_closingwindow(): 
         LSLkiller(deviceName)
+        shutdown_impedance()
         app.quit()
         app.destroy()
     
@@ -975,7 +976,7 @@ def main():
         for i, (circle_id, text_id) in enumerate(electrode_items):
             if i < len(impedance_values):
                 color = convertImpval2Color(impedance_values[i])
-                if impedance_values[i] > 10000:
+                if impedance_values[i] > 500:
                     canvas.itemconfig(circle_id, fill=color)
                     canvas.itemconfig(text_id, text=">500")
                 else:
@@ -989,11 +990,16 @@ def main():
         mainFrame.grid(sticky='nsew')
     
     def on_impstart():
-        imp_BTstartimp.grid_remove()
-        imp_BTquit.grid_remove()
-        imp_BTstopimp.grid()
-        get_impedance_values(device_name=deviceName, channels=len(eegchans))
-        update_imp_loop()
+        try:
+            get_impedance_values(device_name=deviceName, channels=len(eegchans))
+            update_imp_loop()
+            if imp_running():
+                imp_BTstartimp.grid_remove()
+                imp_BTquit.grid_remove()
+                imp_BTstopimp.grid()
+        except Exception as e:
+            print(f'Error {e}')
+            imp_errorlabel.configure(text= f'Error: Could not find {deviceName}. Try again.', text_color='#f34444')
     
     def on_impstop():
         shutdown_impedance()
@@ -1001,8 +1007,6 @@ def main():
         imp_BTquit.grid()
         imp_BTstopimp.grid_remove()
         
-        
-
     def update_imp_loop():
         if imp_running():
             imp_data = get_latest_impedances()
@@ -1029,6 +1033,9 @@ def main():
     # canvas for electrode layout
     imp_canvas = customtkinter.CTkCanvas(impedanceFrame, width=500, height=350, bg="#2b2b2b", highlightthickness=0)
     imp_canvas.grid(row=5, column=0, columnspan=10, padx=(40, 0), pady=(50, 0))
+    
+    imp_errorlabel = customtkinter.CTkLabel(impedanceFrame, text= '', font=B2, justify= 'left')
+    imp_errorlabel.grid(row=9, column=0, columnspan= 10, sticky='w', padx= (40,0), pady= (0,70))
     
     # electrode positions
     left_positions = [(45, 74), (84, 37), (131, 41), (168, 81), (185, 130), (185, 186),
