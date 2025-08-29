@@ -7,6 +7,7 @@ import signal
 import math
 # interface
 import tkinter 
+import tkinter.font as tkFont
 import customtkinter
 # subprocess
 import subprocess
@@ -138,6 +139,9 @@ def main():
     # app frame
     app = customtkinter.CTk()
     app.geometry('720x480')
+    app.title("nEEGlace GUI")
+    # disable maximize and resizing
+    app.resizable(False, False)
     
     # function to handle closing the window
     def on_closingwindow(): 
@@ -227,6 +231,19 @@ def main():
     
     # --- main frame UI ---
     
+    # tab view inside main frame
+    mainFrametabs = customtkinter.CTkTabview(master=mainFrame, width=640, height=300)
+    mainFrametabs.grid(row=3, column=0, columnspan= 10, sticky='w', padx= (40,0), pady= (40,0))
+    # add tabs
+    record_mainFrametab   = mainFrametabs.add("Record")
+    analyze_mainFrametabs = mainFrametabs.add("Analyze")
+    for i in range(10):
+        record_mainFrametab.grid_columnconfigure(i, weight=1)
+        record_mainFrametab.grid_rowconfigure(i, weight=1)
+        analyze_mainFrametabs.grid_columnconfigure(i, weight=1)
+        analyze_mainFrametabs.grid_rowconfigure(i, weight=1)
+    
+    
     # function to connect to stream
     def connect2Stream():
         global streamStatus
@@ -312,29 +329,55 @@ def main():
     title = customtkinter.CTkLabel(mainFrame, text= 'Welcome to nEEGlace', font=H1)
     title.grid(row=0, column=0, columnspan= 10, sticky='w', padx= (40,0), pady= (40,0))
     # body text '
-    bodystr = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor\nincididunt ut labore et dolore magna aliqua.'
+    bodystr = 'This is the GUI for nEEGlace device for EEG device communication \nand real-time visualisations.'
     body = customtkinter.CTkLabel(mainFrame, text= bodystr, font=B2, text_color='#979797', justify= 'left')
     body.grid(row=2, column=0, columnspan= 10, sticky='w', padx= (40,0), pady= (10,0))
     
+    # record tab
+    recd_devicename = customtkinter.CTkLabel(record_mainFrametab, text= 'Device Name', font=B1)
+    recd_devicename.grid(row= 3, column=0, sticky='w', padx= (60,0), pady= (0,0))
+    recd_devicenameentry = customtkinter.CTkEntry(record_mainFrametab, width= 130)
+    recd_devicenameentry.insert(0, 'Explore_DAAH')
+    recd_devicenameentry.grid(row=3, column=1, sticky='w', padx= (10,0), pady= (0,0))
+    
+    recd_eegchans = customtkinter.CTkLabel(record_mainFrametab, text= 'EEG Channels', font=B1)
+    recd_eegchans.grid(row= 4, column=0, sticky='w', padx= (60,0), pady= (0,0))
+    recd_eegchansentry = customtkinter.CTkEntry(record_mainFrametab, width= 40)
+    recd_eegchansentry.insert(0, '18')
+    recd_eegchansentry.grid(row=4, column=1, sticky='w', padx= (10,0), pady= (0,0))
+    
+    recd_reiggerchan = customtkinter.CTkLabel(record_mainFrametab, text= 'Trigger Channel', font=B1)
+    recd_reiggerchan.grid(row= 4, column=1, columnspan = 10, sticky='w', padx= (70,0), pady= (0,0))
+    recd_reiggerchanentry = customtkinter.CTkEntry(record_mainFrametab, width= 40)
+    recd_reiggerchanentry.insert(0, '19')
+    recd_reiggerchanentry.grid(row=4, column=1, columnspan = 10, sticky='w', padx= (190,0), pady= (0,0))
+    
+    # analyze tab
+    comingsoonstr = 'Analyse module is not available now. Coming soon.'
+    anal_body = customtkinter.CTkLabel(analyze_mainFrametabs, text= comingsoonstr, font=B1, text_color='#979797', justify= 'left')
+    anal_body.grid(row=4, column=5, columnspan= 10, sticky='w', padx= (40,0), pady= (10,0))
+    
+    
+    
     # troubleshoot button
-    BTtroubleshoot = customtkinter.CTkButton(mainFrame, text= 'Troubleshoot', fg_color='#5b5b5b', text_color='#b6b6b6', hover_color='#4f4f4f',
+    BTtroubleshoot = customtkinter.CTkButton(record_mainFrametab, text= 'Troubleshoot', fg_color='#5b5b5b', text_color='#b6b6b6', hover_color='#4f4f4f',
                                              command= on_troubleshoot)
-    BTtroubleshoot.grid(row=9, column=0, sticky='sw', padx= (40,0), pady= (0,40))
+    BTtroubleshoot.grid(row=9, column=0, sticky='sw', padx= (10,0), pady= (0,10))
     # setup buttons
-    BTconfig = customtkinter.CTkButton(mainFrame, text= 'Configure nEEGlace', fg_color='#ffffff', text_color='#000000', hover_color='#979797',
+    BTconfig = customtkinter.CTkButton(record_mainFrametab, text= 'Configure nEEGlace', fg_color='#ffffff', text_color='#000000', hover_color='#979797',
                                        command= on_config)
-    BTconfig.grid(row=9, column=1, sticky='sw', padx= (0,0), pady= (0,40))
+    BTconfig.grid(row=9, column=1, sticky='sw', padx= (0,0), pady= (0,10))
     # impedance button
-    BTimp = customtkinter.CTkButton(mainFrame, text= 'Impedance', fg_color='#ffffff', text_color='#000000', hover_color='#979797',
+    BTimp = customtkinter.CTkButton(record_mainFrametab, text= 'Impedance', fg_color='#ffffff', text_color='#000000', hover_color='#979797',
                                          command= on_impcalc)
-    BTimp.grid(row=9, column=2, sticky='sw', padx= (0,0), pady= (0,40))
+    BTimp.grid(row=9, column=2, sticky='sw', padx= (0,0), pady= (0,10))
     
     
     
     # start recording button
-    BTstart = customtkinter.CTkButton(mainFrame, text= 'Start Streaming', 
+    BTstart = customtkinter.CTkButton(record_mainFrametab, text= 'Start Streaming', 
                                       command= on_start)
-    BTstart.grid(row=9, column=9, sticky='se', padx= (10,40), pady= (0,40))
+    BTstart.grid(row=9, column=9, sticky='se', padx= (10,10), pady= (0,10))
     
     
     
@@ -949,12 +992,19 @@ def main():
     # --- Impedance Frame UI ---
 
     circle_radius = 22
+    
     # convert impedance value to colors
-    def convertImpval2Color(impedance):
-        impedance = max(0, min(impedance, 100)) 
-        red = int((impedance / 100) * 255)
-        green = int(((100 - impedance) / 100) * 255)
-        return f'#{red:02x}{green:02x}00' 
+    def convertImpval2Color(impedance_kOhm):
+        if impedance_kOhm <= 10:
+            return "#00aa00"                     # green
+        elif impedance_kOhm <= 20:
+            return "#cccc00"                     # yellow
+        elif impedance_kOhm <= 30:
+            return "#cc8800"                     # orange
+        elif impedance_kOhm <= 50:
+            return "#db3737"                     # red
+        else:
+            return "#000000"                     # black
     
     # electrode layout
     def drawElectrodes(positions):
@@ -966,7 +1016,7 @@ def main():
                 fill='#404040', outline="#626262"
             )
             text_id = imp_canvas.create_text(
-                x, y, text="0.00", fill="black", font=("Arial", 9, "bold")
+                x, y, text="0.00", fill="white", font=("Arial", 9, "bold")
             )
             item_pairs.append((circle_id, text_id))
         return item_pairs
@@ -976,7 +1026,7 @@ def main():
         for i, (circle_id, text_id) in enumerate(electrode_items):
             if i < len(impedance_values):
                 color = convertImpval2Color(impedance_values[i])
-                if impedance_values[i] > 500:
+                if impedance_values[i] > 50:
                     canvas.itemconfig(circle_id, fill=color)
                     canvas.itemconfig(text_id, text=">500")
                 else:
@@ -1042,6 +1092,27 @@ def main():
                       (168, 235), (131, 275), (84, 279), (45, 242)]
     right_positions = [(417, 74), (378, 37), (331, 41), (277, 130), (294, 235),
                        (331, 275), (378, 279), (417, 242)]
+    
+    # legends for impedance values
+    legend_items = [
+        ("#00aa00", "<= 10 kΩ"),
+        ("#cccc00", "11 - 20 kΩ"),
+        ("#cc8800", "21 - 30 kΩ"),
+        ("#cc0000", "31 - 50 kΩ"),
+        ("#000000", "> 50 kΩ")
+    ]
+    
+    legend_frame = customtkinter.CTkFrame(impedanceFrame, fg_color="transparent")
+    legend_frame.grid(row=1, column=0, columnspan=10, padx=(40, 0), sticky="w")
+    
+    # create legend with color circles
+    for i, (color, text) in enumerate(legend_items):
+        circle = customtkinter.CTkCanvas(legend_frame, width=15, height=15, bg="#2b2b2b", highlightthickness=0)
+        circle.create_oval(2, 2, 13, 13, fill=color, outline=color)
+        circle.grid(row=0, column=2*i, padx=(5, 2))
+        # label text
+        lbl = customtkinter.CTkLabel(legend_frame, text=text, font=("Arial", 12))
+        lbl.grid(row=0, column=2*i+1, padx=(0, 15))
     
     # run app
     app.mainloop()
