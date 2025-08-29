@@ -12,7 +12,8 @@ thread = None
 def handle_imp(packet):
     global imp_values
     values = packet.get_impedances()[:num_channels]
-    imp_values = values
+    # imp_values = values
+    imp_values = [v / 2 for v in values]
 
 def _impedance_loop(duration):
     global running
