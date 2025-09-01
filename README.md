@@ -5,7 +5,7 @@ This is the GUI application for nEEGlace device, built with CustomTkinter, PyQt5
 ## Installation Guide
 
 ```bash
-git clone https://github.com/abinjakob/nEEGlace-GUI.git
+git clone https://github.com/T-PsyOl/nEEGlace-GUI.git
 cd nEEGlace-GUI
 pip install -r requirements.txt
 ```
