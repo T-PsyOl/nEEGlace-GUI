@@ -15,7 +15,7 @@ from pyqtgraph.Qt import QtCore
 import numpy as np
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QLabel, QCheckBox, QSpacerItem, QSizePolicy
 import pylsl
-from nEEGlace.computeERP import process_data, initialize_erp_params, plotERP, butter_bandpass, applyBPfilter
+from nEEGlace.computeERP import process_data, initialize_erp_params, plotERP, butter_bandpass, applyBPfilter, butter_highpass, applyHPfilter
 import threading
 
 # creating the app window
@@ -126,6 +126,9 @@ class DataInletPlotter:
         # check for valid timestamps
         if len(ts): 
             filtered_vals = vals.copy()
+            for ichan in self.eegchans:
+                filtered_vals[:, ichan] = applyHPfilter(vals[:, ichan], cutoff=1.0, fs=250.0, order=4)
+                
             if self.filter_checkbox.isChecked():
                 for ichan in self.eegchans:
                     filtered_vals[:, ichan] = applyBPfilter(vals[:, ichan], lowcut=2.0, highcut=20.0, fs=250.0, order=4)
@@ -169,7 +172,7 @@ class DataInletPlotter:
         self.plt_main.setXRange(plotTime - self.plotPeriod + fudgeFactor, plotTime - fudgeFactor)
         self.plt_ch7.setXRange(plotTime - self.plotPeriod + fudgeFactor, plotTime - fudgeFactor)
         # self.plt_main.setYRange(0, 1)
-        # self.plt_ch7.setYRange(-6, -5.96)
+        self.plt_ch7.setYRange(0, 800)
         self.plt_ch7.getAxis('left').setStyle(showValues=False)
         
 

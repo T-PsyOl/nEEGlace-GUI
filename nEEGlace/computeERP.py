@@ -54,6 +54,23 @@ def applyBPfilter(data, lowcut=2.0, highcut=20.0, fs=250.0, order=4):
     else:
         return filtfilt(b, a, data)
     
+def butter_highpass(cutoff, fs, order=1):
+    nyq = 0.5 * fs
+    high = cutoff / nyq
+    return butter(order, high, btype='high')
+
+def applyHPfilter(data, cutoff=1.0, fs=250.0, order=4):
+    b, a = butter_highpass(cutoff, fs, order=order)
+    padlen = 3 * max(len(a), len(b))
+
+    if len(data) <= padlen:
+        pad_width = padlen - len(data) + 1
+        data_padded = np.pad(data, (pad_width, pad_width), mode='constant')
+        filtered = filtfilt(b, a, data_padded)
+        return filtered[pad_width:-pad_width]
+    else:
+        return filtfilt(b, a, data)
+    
 
 # detect trigger and process data
 def process_data(sample):
