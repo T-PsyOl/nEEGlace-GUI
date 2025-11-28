@@ -29,20 +29,22 @@ from nEEGlace.impedanceCheck import get_impedance_values, get_latest_impedances,
 
 def main():
     
+    global deviceName, nbchans, triggerChan, tidx, eegchans
+    
     # SETTINGS ---------------------------------------------------
 
     # -- EEG AMPLIFIER PARAMS
     # enter device name  
     deviceName = 'Explore_DAAH' 
     # enter EEG channels in the stream 
-    nbchans = 18
+    nbchans = 32
     # channel used for sound triggers
-    triggerChan = 19
+    triggerChan = 1
 
 
     # -- SOUND TRIGGERS PARAMS
     # threshold for sound detection
-    soundThresh = 200
+    soundThresh = 500
 
 
     # -- OTHERS
@@ -71,11 +73,7 @@ def main():
     else:
         # adjust total channels 
         nbchans = nbchans +1
-    
-    
-    
-    
-    
+        
     
     
     # function to read text file
@@ -140,11 +138,16 @@ def main():
     app = customtkinter.CTk()
     app.geometry('720x480')
     app.title("nEEGlace GUI")
+    # disable maximize and resizing
+    app.resizable(False, False)
     
     # function to handle closing the window
     def on_closingwindow(): 
-        LSLkiller(deviceName)
-        shutdown_impedance()
+        try:    
+            LSLkiller(deviceName)
+            shutdown_impedance()
+        except Exception as e:
+            print(f'Error {e}')
         app.quit()
         app.destroy()
     
@@ -238,6 +241,8 @@ def main():
     for i in range(10):
         record_mainFrametab.grid_columnconfigure(i, weight=1)
         record_mainFrametab.grid_rowconfigure(i, weight=1)
+        analyze_mainFrametabs.grid_columnconfigure(i, weight=1)
+        analyze_mainFrametabs.grid_rowconfigure(i, weight=1)
     
     
     # function to connect to stream
@@ -263,7 +268,22 @@ def main():
         electrode_items = drawElectrodes(left_positions) + drawElectrodes(right_positions)
     
     def on_start():
-        global inlet, streaminfo, sfreq, nchan
+        global inlet, streaminfo, sfreq, nchan, deviceName, nbchans, triggerChan, eegchans, nbchans, tidx
+        
+        deviceName = recd_devicenameentry.get()
+        nbchans = int(recd_eegchansentry.get())
+        triggerChan = int(recd_reiggerchanentry.get())
+        
+        
+        tidx = triggerChan-1
+        # list of EEG chans
+        eegchans = list(range(nbchans))
+        if tidx in eegchans:
+            # remove sound trigger channel from EEG channels 
+            eegchans = [x for x in eegchans if x != tidx]
+        else:
+            # adjust total channels 
+            nbchans = nbchans +1
         
         # move to loading screen
         mainFrame.grid_forget()
@@ -329,7 +349,7 @@ def main():
     body = customtkinter.CTkLabel(mainFrame, text= bodystr, font=B2, text_color='#979797', justify= 'left')
     body.grid(row=2, column=0, columnspan= 10, sticky='w', padx= (40,0), pady= (10,0))
     
-    
+    # record tab
     recd_devicename = customtkinter.CTkLabel(record_mainFrametab, text= 'Device Name', font=B1)
     recd_devicename.grid(row= 3, column=0, sticky='w', padx= (60,0), pady= (0,0))
     recd_devicenameentry = customtkinter.CTkEntry(record_mainFrametab, width= 130)
@@ -347,6 +367,17 @@ def main():
     recd_reiggerchanentry = customtkinter.CTkEntry(record_mainFrametab, width= 40)
     recd_reiggerchanentry.insert(0, '19')
     recd_reiggerchanentry.grid(row=4, column=1, columnspan = 10, sticky='w', padx= (190,0), pady= (0,0))
+    
+    # battery status
+    BTbattery = customtkinter.CTkButton(record_mainFrametab, text= 'Check Battery', width = 100, fg_color='#5b5b5b', text_color='#b6b6b6', hover_color='#4f4f4f',
+                                             corner_radius=100, command= on_troubleshoot)
+    BTbattery.grid(row=4, column=1, columnspan = 10, sticky='w', padx= (260,0), pady= (0,0))
+    
+    
+    # analyze tab
+    comingsoonstr = 'Analyse module is not available now. Coming soon.'
+    anal_body = customtkinter.CTkLabel(analyze_mainFrametabs, text= comingsoonstr, font=B1, text_color='#979797', justify= 'left')
+    anal_body.grid(row=4, column=5, columnspan= 10, sticky='w', padx= (40,0), pady= (10,0))
     
     
     
@@ -983,12 +1014,19 @@ def main():
     # --- Impedance Frame UI ---
 
     circle_radius = 22
+    
     # convert impedance value to colors
-    def convertImpval2Color(impedance):
-        impedance = max(0, min(impedance, 100)) 
-        red = int((impedance / 100) * 255)
-        green = int(((100 - impedance) / 100) * 255)
-        return f'#{red:02x}{green:02x}00' 
+    def convertImpval2Color(impedance_kOhm):
+        if impedance_kOhm <= 10:
+            return "#00aa00"                     # green
+        elif impedance_kOhm <= 20:
+            return "#cccc00"                     # yellow
+        elif impedance_kOhm <= 30:
+            return "#cc8800"                     # orange
+        elif impedance_kOhm <= 50:
+            return "#db3737"                     # red
+        else:
+            return "#000000"                     # black
     
     # electrode layout
     def drawElectrodes(positions):
@@ -1000,7 +1038,7 @@ def main():
                 fill='#404040', outline="#626262"
             )
             text_id = imp_canvas.create_text(
-                x, y, text="0.00", fill="black", font=("Arial", 9, "bold")
+                x, y, text="0.00", fill="white", font=("Arial", 9, "bold")
             )
             item_pairs.append((circle_id, text_id))
         return item_pairs
@@ -1010,16 +1048,20 @@ def main():
         for i, (circle_id, text_id) in enumerate(electrode_items):
             if i < len(impedance_values):
                 color = convertImpval2Color(impedance_values[i])
-                if impedance_values[i] > 50000:
+                if impedance_values[i] > 50:
                     canvas.itemconfig(circle_id, fill=color)
-                    canvas.itemconfig(text_id, text=">500")
+                    canvas.itemconfig(text_id, text=">50")
                 else:
                     canvas.itemconfig(circle_id, fill=color)
                     canvas.itemconfig(text_id, text=f"{impedance_values[i]:.2f}")
             
     
     def on_impquit():
-        shutdown_impedance()
+        try:   
+            # shutting down impedance module
+            shutdown_impedance()
+        except Exception as e:
+            print(f'Error {e}')
         impedanceFrame.grid_forget()
         mainFrame.grid(sticky='nsew')
     
@@ -1066,16 +1108,52 @@ def main():
     
     # canvas for electrode layout
     imp_canvas = customtkinter.CTkCanvas(impedanceFrame, width=500, height=350, bg="#2b2b2b", highlightthickness=0)
-    imp_canvas.grid(row=5, column=0, columnspan=10, padx=(40, 0), pady=(50, 0))
+    imp_canvas.grid(row=4, column=0, columnspan=10, padx=(40, 0), pady=(50, 0))
     
     imp_errorlabel = customtkinter.CTkLabel(impedanceFrame, text= '', font=B2, justify= 'left')
     imp_errorlabel.grid(row=9, column=0, columnspan= 10, sticky='w', padx= (40,0), pady= (0,70))
     
     # electrode positions
-    left_positions = [(45, 74), (84, 37), (131, 41), (168, 81), (185, 130), (185, 186),
-                      (168, 235), (131, 275), (84, 279), (45, 242)]
-    right_positions = [(417, 74), (378, 37), (331, 41), (277, 130), (294, 235),
-                       (331, 275), (378, 279), (417, 242)]
+    left_positions = [(45, 74),         # L1
+                      (84, 37),         # L2
+                      (131, 41),        # L3
+                      (168, 81),        # L4
+                      (185, 130),       # L5
+                      (185, 186),       # L6
+                      (168, 235),       # L7
+                      (131, 275),       # L8
+                      (84, 279),        # L9
+                      (45, 242)]        # L10
+    
+    right_positions = [(417, 74),       # R1
+                       (378, 37),       # R2
+                       (331, 41),       # R3
+                       (294, 81),       # R4
+                       (294, 235),      # R5
+                       (331, 275),      # R6
+                       (378, 279),      # R7
+                       (417, 242)]      # R8
+    
+    # legends for impedance values
+    legend_items = [
+        ("#00aa00", "<= 10 kΩ"),
+        ("#cccc00", "11 - 20 kΩ"),
+        ("#cc8800", "21 - 30 kΩ"),
+        ("#cc0000", "31 - 50 kΩ"),
+        ("#000000", "> 50 kΩ")
+    ]
+    
+    legend_frame = customtkinter.CTkFrame(impedanceFrame, fg_color="transparent")
+    legend_frame.grid(row=1, column=0, columnspan=10, padx=(40, 0), sticky="w")
+    
+    # create legend with color circles
+    for i, (color, text) in enumerate(legend_items):
+        circle = customtkinter.CTkCanvas(legend_frame, width=15, height=15, bg="#2b2b2b", highlightthickness=0)
+        circle.create_oval(2, 2, 13, 13, fill=color, outline=color)
+        circle.grid(row=0, column=2*i, padx=(5, 2))
+        # label text
+        lbl = customtkinter.CTkLabel(legend_frame, text=text, font=("Arial", 12))
+        lbl.grid(row=0, column=2*i+1, padx=(0, 15))
     
     # run app
     app.mainloop()
