@@ -12,17 +12,18 @@ def initialize_erp_params(inlet, srate, nchan, eegchans, plot_widget, epoch_dura
                           trigger_chan=7, high_pass=0.3, hp_ord=4):
     
     global epochs, triggers, buffer, sampling_rate, epoch_samples, trigger_channel, trigger_threshold, hp, hp_order, last_trigger_time
-    global chan2sel, chan2diff, tidx, max_trials, trial_count, erp_plot_widget, nchans, ring_buffer, pre_samples, post_samples
+    global chan2sel, chan2diff, tidx, max_trials, trial_count, erp_plot_widget, nchans, ring_buffer, pre_samples, post_samples, eegchannels, total_samples_received, last_trigger_idx
 
     epochs = []
     triggers = []
     nchans = nchan
+    eegchannels = eegchans
     buffer = np.zeros((int(srate * epoch_duration), nchan-1))
     trial_count = 0
     pre_samples = int(0.2 * srate)
     post_samples = int(0.6 * srate)
     epoch_samples = pre_samples + post_samples
-    ring_buffer = np.zeros((epoch_samples * 5, nchan)) 
+    ring_buffer = np.zeros((epoch_samples * 5, len(eegchannels))) 
     sampling_rate = srate
     trigger_threshold = trigger_thr
     hp = high_pass
@@ -31,6 +32,8 @@ def initialize_erp_params(inlet, srate, nchan, eegchans, plot_widget, epoch_dura
     tidx = trigger_chan
     erp_plot_widget = plot_widget
     last_trigger_time = 0
+    total_samples_received = 0
+    last_trigger_idx = None
 
 
 
@@ -78,7 +81,7 @@ def process_data(sample):
 
     n_samples = sample.shape[0]
     ring_buffer = np.roll(ring_buffer, -n_samples, axis=0)
-    ring_buffer[-n_samples:] = sample[:, :nchans]
+    ring_buffer[-n_samples:] = sample[:, eegchannels]
     trigger_signal = sample[:, tidx]
     current_time = time.time()
     
@@ -91,14 +94,18 @@ def process_data(sample):
             # time.sleep(0.2)
     
             # get the epoch from ring buffer
-            epoch = ring_buffer[-(pre_samples + post_samples):, :nchans-1]
+            epoch = ring_buffer[-(pre_samples + post_samples):, :]
             if epoch.shape[0] == pre_samples + post_samples:
                 epochs.append(epoch.copy())
                 trial_count += 1
+            
     
             if len(epochs) > max_trials:
                 epochs.pop(0)
             break
+
+            
+
 
 # update ERP plot
 def update_erp_plot():
