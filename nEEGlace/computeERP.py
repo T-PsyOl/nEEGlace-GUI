@@ -11,31 +11,30 @@ import time
 def initialize_erp_params(inlet, srate, nchan, eegchans, plot_widget, epoch_duration=0.8, maxtrials=40, trigger_thr=0.03,
                           trigger_chan=7, high_pass=0.3, hp_ord=4):
     
-    global epochs, triggers, buffer, sampling_rate, epoch_samples, trigger_channel, trigger_threshold, hp, hp_order, last_trigger_time
-    global chan2sel, chan2diff, tidx, max_trials, trial_count, erp_plot_widget, nchans, ring_buffer, pre_samples, post_samples, eegchannels, total_samples_received, last_trigger_idx
-
-    epochs = []
-    triggers = []
-    nchans = nchan
-    eegchannels = eegchans
-    buffer = np.zeros((int(srate * epoch_duration), nchan-1))
-    trial_count = 0
-    pre_samples = int(0.2 * srate)
-    post_samples = int(0.6 * srate)
-    epoch_samples = pre_samples + post_samples
-    ring_buffer = np.zeros((epoch_samples * 5, len(eegchannels))) 
-    sampling_rate = srate
-    trigger_threshold = trigger_thr
-    hp = high_pass
-    hp_order = hp_ord
-    max_trials = maxtrials
-    tidx = trigger_chan
-    erp_plot_widget = plot_widget
-    last_trigger_time = 0
-    total_samples_received = 0
-    last_trigger_idx = None
-
-
+    global nchans, eegchannels, sampling_rate, trigger_threshold, hp, hp_order, max_trials, tidx, erp_plot_widget
+    global pre_samples, post_samples, epoch_samples, ring_buffer, epochs, trial_count, last_trigger_sample, global_sample_index, win1, win2
+    
+    nchans              = nchan
+    eegchannels         = eegchans
+    sampling_rate       = srate
+    trigger_threshold   = trigger_thr
+    hp                  = high_pass
+    hp_order            = hp_ord
+    max_trials          = maxtrials
+    tidx                = trigger_chan
+    erp_plot_widget     = plot_widget
+    
+    # initialisations 
+    pre_samples         = int(0.2 * srate)
+    post_samples        = int(0.6 * srate)
+    epoch_samples       = pre_samples + post_samples
+    ring_buffer         = np.zeros((epoch_samples * 5, nchans)) 
+    epochs              = []
+    trial_count         = 0
+    last_trigger_sample = -99999
+    global_sample_index = 0
+    win1                = 100
+    win2                = 120
 
 # creating a filter
 def butter_bandpass(lowcut, highcut, fs, order=1):
@@ -75,49 +74,92 @@ def applyHPfilter(data, cutoff=1.0, fs=250.0, order=4):
         return filtfilt(b, a, data)
     
 
+# # detect trigger and process data
+# def process_data(sample):
+#     global epochs, triggers, buffer, trial_count, raw_eeg, ring_buffer, epoch_samples, last_trigger_time
+#     n_samples = sample.shape[0]
+#     ring_buffer = np.roll(ring_buffer, -n_samples, axis=0)
+#     ring_buffer[-n_samples:] = sample[:, eegchannels]
+#     trigger_signal = sample[:, tidx]
+#     current_time = time.time()
+    
+#     for i, value in enumerate(trigger_signal):
+#         if value > trigger_threshold:
+#             if current_time - last_trigger_time < 0.2:
+#                 continue
+#             print("Trigger detected")
+#             last_trigger_time = current_time
+#             # time.sleep(0.2)
+    
+#             # get the epoch from ring buffer
+#             epoch = ring_buffer[-(pre_samples + post_samples):, :]
+#             if epoch.shape[0] == pre_samples + post_samples:
+#                 epochs.append(epoch.copy())
+#                 trial_count += 1
+            
+    
+#             if len(epochs) > max_trials:
+#                 epochs.pop(0)
+#             break            
+
+# # update ERP plot
+# def update_erp_plot():
+#     global erp_plot_widget, epochs
+#     if not epochs:
+#         return
+#     # calculate average across all epochs
+#     average_epoch = np.mean(np.array(epochs), axis=0)  
+#     # baseline correction
+#     baseline = average_epoch[:pre_samples, :].mean(axis=0)
+#     average_epoch -= baseline
+#     n_samples, n_channels = average_epoch.shape
+#     # define time axis
+#     time_axis = np.linspace(-pre_samples / sampling_rate, post_samples / sampling_rate, n_samples)
+    
+#     #plot each channel
+#     erp_plot_widget.clear()
+#     # erp_plot_widget.setYRange(-2, 2)  
+#     for i in range(n_channels):
+#         erp_plot_widget.plot(time_axis, average_epoch[:, i],
+#                              pen=pg.mkPen(pg.intColor(i, hues=n_channels), width=1))
+
 # detect trigger and process data
 def process_data(sample):
-    global epochs, triggers, buffer, trial_count, raw_eeg, ring_buffer, epoch_samples, last_trigger_time
-
+    global epochs, trial_count, raw_eeg, ring_buffer, epoch_samples, global_sample_index, last_trigger_sample
     n_samples = sample.shape[0]
     ring_buffer = np.roll(ring_buffer, -n_samples, axis=0)
-    ring_buffer[-n_samples:] = sample[:, eegchannels]
-    trigger_signal = sample[:, tidx]
-    current_time = time.time()
+    ring_buffer[-n_samples:] = sample
+    trigger_buffer = ring_buffer[win1:win2, tidx]
     
-    for i, value in enumerate(trigger_signal):
+    for i, value in enumerate(trigger_buffer):
+        global_sample_index += 1
         if value > trigger_threshold:
-            if current_time - last_trigger_time < 0.2:
+            if global_sample_index - last_trigger_sample < int(0.4 * sampling_rate):
                 continue
             print("Trigger detected")
-            last_trigger_time = current_time
+            last_trigger_sample = global_sample_index
             # time.sleep(0.2)
     
             # get the epoch from ring buffer
-            epoch = ring_buffer[-(pre_samples + post_samples):, :]
+            stidx  = (win1+i) - pre_samples
+            endidx = (win1+i) + post_samples
+            epoch = ring_buffer[stidx:endidx, eegchannels]
+            
+            # baseline 
+            baseline = epoch[:pre_samples, :].mean(axis=0)
+            epoch -= baseline
+            
             if epoch.shape[0] == pre_samples + post_samples:
                 epochs.append(epoch.copy())
-                trial_count += 1
-            
-    
-            if len(epochs) > max_trials:
-                epochs.pop(0)
-            break
-
-            
-
+            break            
 
 # update ERP plot
 def update_erp_plot():
     global erp_plot_widget, epochs
     if not epochs:
         return
-    
     # calculate average across all epochs
     average_epoch = np.mean(np.array(epochs), axis=0)  
-    # baseline correction
-    baseline = average_epoch[:pre_samples, :].mean(axis=0)
-    average_epoch -= baseline
     n_samples, n_channels = average_epoch.shape
     # define time axis
     time_axis = np.linspace(-pre_samples / sampling_rate, post_samples / sampling_rate, n_samples)
@@ -128,7 +170,7 @@ def update_erp_plot():
     for i in range(n_channels):
         erp_plot_widget.plot(time_axis, average_epoch[:, i],
                              pen=pg.mkPen(pg.intColor(i, hues=n_channels), width=1))
-    
+
 # data collection thread
 def data_loop(inlet):
     while True:
