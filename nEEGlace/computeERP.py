@@ -33,8 +33,8 @@ def initialize_erp_params(inlet, srate, nchan, eegchans, plot_widget, epoch_dura
     trial_count         = 0
     last_trigger_sample = -99999
     global_sample_index = 0
-    win1                = 100
-    win2                = 120
+    win1                = 780
+    win2                = 800
 
 # creating a filter
 def butter_bandpass(lowcut, highcut, fs, order=1):
