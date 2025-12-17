@@ -72,7 +72,7 @@ def applyHPfilter(data, cutoff=1.0, fs=250.0, order=4):
         return filtered[pad_width:-pad_width]
     else:
         return filtfilt(b, a, data)
-    
+
 # detect trigger and process data
 def process_data(sample):
     global epochs, trial_count, raw_eeg, ring_buffer, epoch_samples, global_sample_index, last_trigger_sample
@@ -116,7 +116,7 @@ def update_erp_plot():
     
     #plot each channel
     erp_plot_widget.clear()
-    # erp_plot_widget.setYRange(-2, 2)  
+    erp_plot_widget.setYRange(-15, 15)  
     for i in range(n_channels):
         erp_plot_widget.plot(time_axis, average_epoch[:, i],
                              pen=pg.mkPen(pg.intColor(i, hues=n_channels), width=1))
@@ -137,5 +137,4 @@ def plotERP(inlet, srate, nchan, plot_widget, trigger_thr, trigger_chan, eegchan
     timer.setInterval(500)  
     timer.start()
     return timer
-
     

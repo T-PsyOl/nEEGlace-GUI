@@ -126,8 +126,8 @@ class DataInletPlotter:
         # check for valid timestamps
         if len(ts): 
             filtered_vals = vals.copy()
-            for ichan in self.eegchans:
-                filtered_vals[:, ichan] = applyHPfilter(vals[:, ichan], cutoff=1.0, fs=250.0, order=4)
+            # for ichan in self.eegchans:
+            #     filtered_vals[:, ichan] = applyHPfilter(vals[:, ichan], cutoff=1.0, fs=250.0, order=4)
                 
             if self.filter_checkbox.isChecked():
                 for ichan in self.eegchans:
