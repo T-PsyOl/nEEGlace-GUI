@@ -73,56 +73,6 @@ def applyHPfilter(data, cutoff=1.0, fs=250.0, order=4):
     else:
         return filtfilt(b, a, data)
     
-
-# # detect trigger and process data
-# def process_data(sample):
-#     global epochs, triggers, buffer, trial_count, raw_eeg, ring_buffer, epoch_samples, last_trigger_time
-#     n_samples = sample.shape[0]
-#     ring_buffer = np.roll(ring_buffer, -n_samples, axis=0)
-#     ring_buffer[-n_samples:] = sample[:, eegchannels]
-#     trigger_signal = sample[:, tidx]
-#     current_time = time.time()
-    
-#     for i, value in enumerate(trigger_signal):
-#         if value > trigger_threshold:
-#             if current_time - last_trigger_time < 0.2:
-#                 continue
-#             print("Trigger detected")
-#             last_trigger_time = current_time
-#             # time.sleep(0.2)
-    
-#             # get the epoch from ring buffer
-#             epoch = ring_buffer[-(pre_samples + post_samples):, :]
-#             if epoch.shape[0] == pre_samples + post_samples:
-#                 epochs.append(epoch.copy())
-#                 trial_count += 1
-            
-    
-#             if len(epochs) > max_trials:
-#                 epochs.pop(0)
-#             break            
-
-# # update ERP plot
-# def update_erp_plot():
-#     global erp_plot_widget, epochs
-#     if not epochs:
-#         return
-#     # calculate average across all epochs
-#     average_epoch = np.mean(np.array(epochs), axis=0)  
-#     # baseline correction
-#     baseline = average_epoch[:pre_samples, :].mean(axis=0)
-#     average_epoch -= baseline
-#     n_samples, n_channels = average_epoch.shape
-#     # define time axis
-#     time_axis = np.linspace(-pre_samples / sampling_rate, post_samples / sampling_rate, n_samples)
-    
-#     #plot each channel
-#     erp_plot_widget.clear()
-#     # erp_plot_widget.setYRange(-2, 2)  
-#     for i in range(n_channels):
-#         erp_plot_widget.plot(time_axis, average_epoch[:, i],
-#                              pen=pg.mkPen(pg.intColor(i, hues=n_channels), width=1))
-
 # detect trigger and process data
 def process_data(sample):
     global epochs, trial_count, raw_eeg, ring_buffer, epoch_samples, global_sample_index, last_trigger_sample
@@ -187,4 +137,5 @@ def plotERP(inlet, srate, nchan, plot_widget, trigger_thr, trigger_chan, eegchan
     timer.setInterval(500)  
     timer.start()
     return timer
+
     
