@@ -11,7 +11,7 @@ import time
 def initialize_erp_params(inlet, srate, nchan, eegchans, plot_widget, epoch_duration=0.8, maxtrials=40, trigger_thr=0.03,
                           trigger_chan=7, high_pass=0.3, hp_ord=4):
     
-    global nchans, eegchannels, sampling_rate, trigger_threshold, hp, hp_order, max_trials, tidx, erp_plot_widget
+    global nchans, eegchannels, allchannels, sampling_rate, trigger_threshold, hp, hp_order, max_trials, tidx, erp_plot_widget
     global pre_samples, post_samples, epoch_samples, ring_buffer, epochs, trial_count, last_trigger_sample, global_sample_index, win1, win2
     
     nchans              = nchan
@@ -35,6 +35,8 @@ def initialize_erp_params(inlet, srate, nchan, eegchans, plot_widget, epoch_dura
     global_sample_index = 0
     win1                = 780
     win2                = 800
+    allchannels         = eegchannels + [tidx]
+
 
 # creating a filter
 def butter_bandpass(lowcut, highcut, fs, order=1):
@@ -78,7 +80,7 @@ def process_data(sample):
     global epochs, trial_count, raw_eeg, ring_buffer, epoch_samples, global_sample_index, last_trigger_sample
     n_samples = sample.shape[0]
     ring_buffer = np.roll(ring_buffer, -n_samples, axis=0)
-    ring_buffer[-n_samples:] = sample
+    ring_buffer[-n_samples:] = sample[:, allchannels]
     trigger_buffer = ring_buffer[win1:win2, tidx]
     
     for i, value in enumerate(trigger_buffer):
@@ -87,6 +89,7 @@ def process_data(sample):
             if global_sample_index - last_trigger_sample < int(0.4 * sampling_rate):
                 continue
             print("Trigger detected")
+            trial_count +=1
             last_trigger_sample = global_sample_index
             # time.sleep(0.2)
     

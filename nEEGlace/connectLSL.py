@@ -53,7 +53,7 @@ class DataInlet(Inlet):
         return timestamp, sample
 
 def connectstreams(plotPeriod: int = 5) -> Tuple[List[DataInlet], pylsl.StreamInfo]:
-    print("Looking for nEEGlace...")
+    print("Looking for EEG Amplifier...")
     startTime = time.time()
     inlets: List[DataInlet] = []
     
