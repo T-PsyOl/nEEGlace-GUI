@@ -25,12 +25,13 @@ from nEEGlace.connectLSL import connectstreams
 from nEEGlace.streamPlotter import plotEEG
 from nEEGlace.advertiseMentalab import LSLestablisher, LSLkiller
 from nEEGlace.advertiseOpenbci import LSLestablisherOBC, LSLkillerOBC
+from nEEGlace.advertiseSyntheticEEG import LSLestablisherSynthetic, LSLkillerSynthetic
 from nEEGlace.impedanceCheck import get_impedance_values, get_latest_impedances, shutdown_impedance, imp_running
 
 
 def main():
     
-    global deviceName, nbchans, triggerChan, tidx, eegchans, devicetype
+    global deviceName, nbchans, triggerChan, tidx, eegchans, devicetype, soundThresh
     
     # --- app frames ---
     # open the config file and fetch data
@@ -39,11 +40,16 @@ def main():
     ani = None
     
     # threshold to detect sound onset
-    soundThresh = 400
+    soundThresh = 200
+    update_deviceflag = True
 
     
     # available EEG amplifier 
-    eegamplist = ["Mentalab Explore_84D1 (8 Channels)", "Mentalab Explore_DAAH (32 Channels)", "OpenBCI Cyton (8 Channels)", "OpenBCI Cyton Daisy (16 Channels)"]
+    eegamplist = ["Mentalab Explore_84D1 (8 Channel)", 
+                  "Mentalab Explore_DAAH (32 Channel)", 
+                  "OpenBCI Cyton (8 Channel)", 
+                  "OpenBCI Cyton Daisy (16 Channel)", 
+                  "Synthetic EEG (8 Channel)"]
     
     # function to read text file
     def readConfig():
@@ -115,6 +121,7 @@ def main():
         try:    
             LSLkiller(deviceName)
             LSLkillerOBC()
+            LSLkillerSynthetic()
             shutdown_impedance()
         except Exception as e:
             print(f'Error {e}')
@@ -226,6 +233,10 @@ def main():
             # run the LSLestablisher module for openbci
             streamStatus = LSLestablisherOBC()
             print(streamStatus)
+        elif devicetype == 3:
+            # run the LSLestablisher module for openbci
+            streamStatus = LSLestablisherSynthetic()
+            print(streamStatus)
             
     
     # button functions
@@ -243,30 +254,53 @@ def main():
         mainFrame.grid_forget()
         impedanceFrame.grid(sticky='nsew')
         electrode_items = drawElectrodes(left_positions) + drawElectrodes(right_positions)
-    
-    def on_start():
-        global inlet, streaminfo, sfreq, nchan, deviceName, nbchans, triggerChan, eegchans, nbchans, tidx, devicetype
         
+    def update_deviceinfo(value):
+        global eegamp, deviceName, devicetype, update_deviceflag
         eegamp = recd_devicenameentry.get()
-        nbchans = int(recd_eegchansentry.get())
-        triggerChan = int(recd_triggerchanentry.get())
         
+        update_deviceflag = False
+        # clear old values first (important!)
+        recd_eegchansentry.delete(0, 'end')
+        recd_triggerchanentry.delete(0, 'end')
+        
+        # set eeg device information
         if eegamp == eegamplist[0]:
             deviceName = 'Explore_84D1'
             devicetype = 1
+            recd_eegchansentry.insert(0, '8')
+            recd_triggerchanentry.insert(0, '8')       
         elif eegamp == eegamplist[1]:
             deviceName = 'Explore_DAAH'
             devicetype = 1
+            recd_eegchansentry.insert(0, '18')
+            recd_triggerchanentry.insert(0, '19')    
         elif eegamp == eegamplist[2]:
             deviceName = 'OpenBCI Cyton'
             devicetype = 2
+            recd_eegchansentry.insert(0, '8')
+            recd_triggerchanentry.insert(0, '8')    
         elif eegamp == eegamplist[3]:
             deviceName = 'OpenBCI Daisy'
             devicetype = 2
-            
+            recd_eegchansentry.insert(0, '16')
+            recd_triggerchanentry.insert(0, '16')    
+        elif eegamp == eegamplist[4]:
+            deviceName = 'SyntheticEEG'
+            devicetype = 3
+            recd_eegchansentry.insert(0, '8')
+            recd_triggerchanentry.insert(0, '8')    
+    
+    def on_start():
+        global inlet, streaminfo, sfreq, nchan, deviceName, nbchans, triggerChan, eegchans, nbchans, tidx, devicetype 
         
-        
+        nbchans = int(recd_eegchansentry.get())
+        triggerChan = int(recd_triggerchanentry.get())
         tidx = triggerChan-1
+        
+        if update_deviceflag:
+            update_deviceinfo(2)
+        
         # list of EEG chans
         eegchans = list(range(nbchans))
         if tidx in eegchans:
@@ -343,25 +377,25 @@ def main():
     # record tab
     recd_devicename = customtkinter.CTkLabel(record_mainFrametab, text= 'EEG Device', font=B1)
     recd_devicename.grid(row= 3, column=0, sticky='w', padx= (60,0), pady= (0,0))
-    recd_devicenameentry = customtkinter.CTkComboBox(record_mainFrametab, values= eegamplist, width = 358)
+    recd_devicenameentry = customtkinter.CTkComboBox(record_mainFrametab, values= eegamplist, width = 358, command = update_deviceinfo)
     recd_devicenameentry.grid(row=3, column=1, columnspan= 10, sticky='w', padx= (10,0), pady= (0,0))
     recd_devicenameentry.set(eegamplist[2])
     recd_eegchans = customtkinter.CTkLabel(record_mainFrametab, text= 'EEG Channels', font=B1)
     recd_eegchans.grid(row= 4, column=0, sticky='w', padx= (60,0), pady= (0,0))
     recd_eegchansentry = customtkinter.CTkEntry(record_mainFrametab, width= 40)
-    recd_eegchansentry.insert(0, '18')
+    recd_eegchansentry.insert(0, '8')
     recd_eegchansentry.grid(row=4, column=1, sticky='w', padx= (10,0), pady= (0,0))
     
     recd_triggerchan = customtkinter.CTkLabel(record_mainFrametab, text= 'Trigger Channel', font=B1)
     recd_triggerchan.grid(row= 4, column=1, columnspan = 10, sticky='w', padx= (70,0), pady= (0,0))
     recd_triggerchanentry = customtkinter.CTkEntry(record_mainFrametab, width= 40)
-    recd_triggerchanentry.insert(0, '19')
+    recd_triggerchanentry.insert(0, '8')
     recd_triggerchanentry.grid(row=4, column=1, columnspan = 10, sticky='w', padx= (190,0), pady= (0,0))
     
     # battery status
     BTbattery = customtkinter.CTkButton(record_mainFrametab, text= 'Check Battery', width = 100, fg_color='#5b5b5b', text_color='#b6b6b6', hover_color='#4f4f4f',
                                              corner_radius=100, command= on_troubleshoot)
-    BTbattery.grid(row=4, column=1, columnspan = 10, sticky='w', padx= (260,0), pady= (0,0))
+    # BTbattery.grid(row=4, column=1, columnspan = 10, sticky='w', padx= (260,0), pady= (0,0))
     
     
     # analyze tab
@@ -382,7 +416,7 @@ def main():
     # impedance button
     BTimp = customtkinter.CTkButton(record_mainFrametab, text= 'Impedance', fg_color='#ffffff', text_color='#000000', hover_color='#979797',
                                          command= on_impcalc)
-    BTimp.grid(row=9, column=2, sticky='sw', padx= (0,0), pady= (0,10))
+    # BTimp.grid(row=9, column=2, sticky='sw', padx= (0,0), pady= (0,10))
     
     
     
@@ -721,6 +755,10 @@ def main():
     
     # padx= (90,0), padx= (300,0), 
     
+    
+    
+    
+    
     # --- Configure Main Frame UI ---
     
     # button functions
@@ -789,8 +827,6 @@ def main():
             cfgM_infonotestr = ''
             cfgM_infonote.configure(text = cfgM_infonotestr)
             
-            
-        
         
     def cfgM_recordtoggleEvent():
         if cfgM_recordtoggleVar.get() == 1:
@@ -858,7 +894,7 @@ def main():
     cfgM_title3 = customtkinter.CTkLabel(configFrameMain, text= 'Stream Settings', font=B1, text_color='#979797', justify= 'left')
     cfgM_title3.grid(row=1, column=7, columnspan= 5, sticky='w', padx= (0,0), pady= (40,0))
     # trial averaged gain
-    cfgM_trlavgtxt = customtkinter.CTkLabel(configFrameMain, text= 'Trial to Average for ERP', font=B1)
+    cfgM_trlavgtxt = customtkinter.CTkLabel(configFrameMain, text= 'Threshold for onsets', font=B1)
     cfgM_trlavgtxt.grid(row=2, column=7, sticky='w', padx= (0,0), pady= (10,0))
     cfgM_trlavgentry = customtkinter.CTkEntry(configFrameMain, width= 48)
     cfgM_trlavgentry.insert(0, configdata[4])
@@ -930,6 +966,8 @@ def main():
             killstat = LSLkiller(deviceName)
         elif devicetype == 2:
             killstat = LSLkillerOBC()
+        elif devicetype == 3:
+            killstat = LSLkillerSynthetic()
         if killstat:
             time.sleep(3)
             streamerFrameMain.grid_forget()
