@@ -157,7 +157,8 @@ class DataInletPlotter:
                 else:
                     data_to_plot = vals[newOffset:, ichan]
                 # uppend new data to the trimmed old data
-                new_vals = np.hstack((old_vals[oldOffset:], data_to_plot - ichan))
+                vert_offset = ichan * 50
+                new_vals = np.hstack((old_vals[oldOffset:], data_to_plot + vert_offset))
                 # Update the curve with new data
                 curve.setData(new_ts, new_vals)
     
