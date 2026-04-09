@@ -86,10 +86,11 @@ def process_data(sample):
     for i, value in enumerate(trigger_buffer):
         global_sample_index += 1
         if value > trigger_threshold:
-            if global_sample_index - last_trigger_sample < int(0.4 * sampling_rate):
+            if global_sample_index - last_trigger_sample < int(0.8 * sampling_rate):
                 continue
             print("Trigger detected")
             trial_count +=1
+            print(f'Trials = {trial_count}')
             last_trigger_sample = global_sample_index
             # time.sleep(0.2)
     
