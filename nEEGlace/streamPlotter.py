@@ -18,6 +18,8 @@ import pylsl
 from nEEGlace.computeERP import process_data, initialize_erp_params, plotERP, butter_bandpass, applyBPfilter, butter_highpass, applyHPfilter
 import threading
 
+vert_offset_factor   = 50
+
 # creating the app window
 class PlotWindow(QMainWindow): 
     def __init__(self):
@@ -140,6 +142,7 @@ class DataInletPlotter:
             # plotting EEG stream
             new_ts = None
             oldOffset, newOffset = 0, 0
+            
             for ichan in range(inlet.nchan):
                 curve = self.curves[ichan]  
                 # retrieve current plot data (old timestamps and values)
@@ -157,8 +160,11 @@ class DataInletPlotter:
                 else:
                     data_to_plot = vals[newOffset:, ichan]
                 # uppend new data to the trimmed old data
-                vert_offset = ichan * 50
-                new_vals = np.hstack((old_vals[oldOffset:], data_to_plot + vert_offset))
+                vert_offset = ichan * vert_offset_factor
+                if ichan == self.tidx:
+                    new_vals = np.hstack((old_vals[oldOffset:], data_to_plot +200))
+                else:
+                    new_vals = np.hstack((old_vals[oldOffset:], data_to_plot - vert_offset))
                 # Update the curve with new data
                 curve.setData(new_ts, new_vals)
     
@@ -187,6 +193,11 @@ def plotEEG(inlets, eegchans, nchan, tidx, trigger_thr, plotPeriod=5, updateInte
         print(f"Filter toggled: {'ON' if use_filter else 'OFF'}")
         # reinitialize ERP parameters
         initialize_erp_params(inlets[0], srate=250, nchan=nchan,eegchans=eegchans, plot_widget=window.plot_bottom_right,trigger_thr=trigger_thr, trigger_chan=tidx)
+    
+    # add channel labels in the EEG stream
+    channel_labels = [f"ch{i+1}" for i in range(nchan)]
+    tick_positions = [(-i * vert_offset_factor, channel_labels[i]) for i in range(nchan)]
+    window.plot_top.getAxis('left').setTicks([tick_positions])
 
     # assign the callback to the checkbox toggle handler
     window.filter_callback = reset_erp
